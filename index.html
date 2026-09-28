@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>黑白像素拓扑分析</title>
+    <link rel="stylesheet" href="/src/style.css" />
+  </head>
+  <body>
+    <div id="app">
+      <header>
+        <h1>黑白像素拓扑分析</h1>
+        <p class="hint">黑格八邻接 · 白格四邻接 · 触边白域为外部 · 欧拉数 = 黑域数 − 孔洞数</p>
+      </header>
+      <main>
+        <section class="board-panel">
+          <div class="toolbar">
+            <label>边长
+              <select id="size-select"></select>
+            </label>
+            <button id="clear-btn" type="button">清空</button>
+            <span class="sep"></span>
+            <label>笔刷
+              <select id="brush-select">
+                <option value="1" selected>黑格</option>
+                <option value="0">白格</option>
+              </select>
+            </label>
+            <span class="sep"></span>
+            <span class="ov-title">蒙层</span>
+            <label><input type="checkbox" id="ov-black" /> 黑域</label>
+            <label><input type="checkbox" id="ov-holes" checked /> 孔洞</label>
+            <label><input type="checkbox" id="ov-exterior" /> 外部</label>
+          </div>
+          <canvas id="board"></canvas>
+          <div id="hover-info">—</div>
+        </section>
+        <aside>
+          <section class="panel">
+            <h2>拓扑统计</h2>
+            <div class="metrics" id="metrics"></div>
+            <h3>黑域明细（面积 / 四边暴露周长）</h3>
+            <div id="regions"></div>
+            <h3>孔洞明细</h3>
+            <div id="holes"></div>
+          </section>
+          <section class="panel">
+            <h2>单格翻转扫描</h2>
+            <button id="scan-btn" type="button">扫描所有单格翻转</button>
+            <div id="candidate-list"></div>
+            <div id="preview-panel" class="hidden">
+              <h3>差异预览 <span id="preview-pos"></span></h3>
+              <div id="diff-table"></div>
+              <div class="row">
+                <button id="confirm-btn" type="button">确认改写原图</button>
+                <button id="cancel-btn" type="button">取消</button>
+              </div>
+            </div>
+          </section>
+          <section class="panel">
+            <h2>导入 / 导出</h2>
+            <textarea id="io-text" rows="8" spellcheck="false" placeholder='{"size":4,"rows":["0110","1001","1001","0110"]}'></textarea>
+            <div class="row">
+              <button id="export-btn" type="button">导出到文本框</button>
+              <button id="import-btn" type="button">从文本框导入</button>
+            </div>
+            <div id="io-msg"></div>
+          </section>
+        </aside>
+      </main>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

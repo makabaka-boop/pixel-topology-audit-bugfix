@@ -1,0 +1,7 @@
+services:
+  pixels:
+    build: .
+    image: pixels-topology:latest
+    ports:
+      - "8080:80"
+    restart: unless-stopped
