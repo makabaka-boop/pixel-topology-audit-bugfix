@@ -98,8 +98,9 @@ export interface Analysis {
 
 export function analyze(grid: Grid): Analysis {
   const { size, cells } = grid;
-  const b = labelComponents(size, cells, 1, DIRS4);
-  const w = labelComponents(size, cells, 0, DIRS8);
+  // 黑格八邻接、白格四邻接（对角接缝白格不可穿过），画布显示与统计共用这一套
+  const b = labelComponents(size, cells, 1, DIRS8);
+  const w = labelComponents(size, cells, 0, DIRS4);
 
   const blackRegions: BlackRegion[] = [];
   const whiteRegions: WhiteRegion[] = [];
@@ -115,10 +116,11 @@ export function analyze(grid: Grid): Analysis {
         const reg = blackRegions[b.labels[i]];
         reg.area++;
         reg.cells.push(i);
+        // 暴露周长：朝向白格或画布外的边都计入（贴边黑格不能漏算朝外边）
         for (const [dr, dc] of DIRS4) {
           const nr = r + dr;
           const nc = c + dc;
-          if (nr >= 0 && nr < size && nc >= 0 && nc < size && cells[nr * size + nc] === 0) {
+          if (nr < 0 || nr >= size || nc < 0 || nc >= size || cells[nr * size + nc] === 0) {
             reg.perimeter++;
           }
         }
@@ -126,7 +128,8 @@ export function analyze(grid: Grid): Analysis {
         const reg = whiteRegions[w.labels[i]];
         reg.area++;
         reg.cells.push(i);
-        if (r === 0 || c === 0) reg.touchesBorder = true;
+        // 触边白域为外部：四条边都要检查，不能只看上边和左边
+        if (r === 0 || c === 0 || r === size - 1 || c === size - 1) reg.touchesBorder = true;
       }
     }
   }
@@ -168,9 +171,13 @@ export function findHoleRemovals(grid: Grid, base?: Analysis): FlipCandidate[] {
   const work = cloneGrid(grid);
   const out: FlipCandidate[] = [];
   for (let i = 0; i < work.cells.length; i++) {
-    work.cells[i] = work.cells[i] === 1 ? 0 : 1;
+    // 逐格试翻：分析后必须翻回，否则后一个候选会受前面试翻状态的污染
+    const old = work.cells[i];
+    work.cells[i] = old === 1 ? 0 : 1;
     const after = analyze(work);
-    if (after.holeCount < before.holeCount) {
+    work.cells[i] = old;
+    // 只收“恰好”消去一个孔且黑域数不变的位置：多孔同消或改变黑域数的都不算
+    if (after.holeCount === before.holeCount - 1 && after.blackCount === before.blackCount) {
       out.push({
         row: Math.floor(i / grid.size),
         col: i % grid.size,
@@ -183,7 +190,6 @@ export function findHoleRemovals(grid: Grid, base?: Analysis): FlipCandidate[] {
         eulerAfter: after.euler,
       });
     }
-
   }
   out.sort((a, b) => a.row - b.row || a.col - b.col);
   return out;
@@ -231,7 +237,8 @@ export function parseGrid(text: string): Grid {
       rows = data;
     } else if (typeof data === 'object' && data !== null && Array.isArray((data as { rows?: unknown }).rows)) {
       const d = data as { rows: unknown[]; size?: unknown };
-      if (d.size !== undefined && Number(d.size) < d.rows.length) {
+      // 声明的 size 必须与行数一致（偏大或偏小都拒绝）
+      if (d.size !== undefined && Number(d.size) !== d.rows.length) {
         throw new Error(`size=${String(d.size)} 与行数 ${d.rows.length} 不一致`);
       }
       rows = d.rows;
@@ -254,7 +261,8 @@ export function parseGrid(text: string): Grid {
   }
   for (const row of strs) {
     if (row.length !== n) throw new Error(`每行长度须等于边长 ${n}`);
-    if (!/^[01]+$/.test(row)) continue;
+    // 非 0/1 字符一律拒绝，不能静默当成 0
+    if (!/^[01]+$/.test(row)) throw new Error('每行只能包含 0/1 字符');
   }
 
   const g = createGrid(n);

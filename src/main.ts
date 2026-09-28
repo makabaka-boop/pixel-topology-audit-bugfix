@@ -280,11 +280,15 @@ function confirmPreview(): void {
   if (!previewGrid) return;
   grid = previewGrid;
   analysis = analyze(grid);
+  renderStats(); // 画布已改写，统计面板不能再沿用旧图
   scan(); // 改写后拓扑已变，自动重扫
 }
 
 function onGridChanged(): void {
   analysis = analyze(grid);
+  // 画布一变，预览与候选标记都基于旧画布，必须全部作废
+  clearPreview();
+  candidates = null;
   renderStats();
   renderCandidates();
   draw();
