@@ -284,6 +284,13 @@ function confirmPreview(): void {
 }
 
 function onGridChanged(): void {
+  // 任何对原图的修改都使旧的候选扫描与预览失效，避免标记/悬浮/统计沿用旧画布
+  candidates = null;
+  selected = -1;
+  previewGrid = null;
+  previewAnalysis = null;
+  el('preview-panel').classList.add('hidden');
+  el('hover-info').textContent = '—';
   analysis = analyze(grid);
   renderStats();
   renderCandidates();

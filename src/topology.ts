@@ -98,8 +98,8 @@ export interface Analysis {
 
 export function analyze(grid: Grid): Analysis {
   const { size, cells } = grid;
-  const b = labelComponents(size, cells, 1, DIRS4);
-  const w = labelComponents(size, cells, 0, DIRS8);
+  const b = labelComponents(size, cells, 1, DIRS8);
+  const w = labelComponents(size, cells, 0, DIRS4);
 
   const blackRegions: BlackRegion[] = [];
   const whiteRegions: WhiteRegion[] = [];
@@ -118,7 +118,7 @@ export function analyze(grid: Grid): Analysis {
         for (const [dr, dc] of DIRS4) {
           const nr = r + dr;
           const nc = c + dc;
-          if (nr >= 0 && nr < size && nc >= 0 && nc < size && cells[nr * size + nc] === 0) {
+          if (nr < 0 || nr >= size || nc < 0 || nc >= size || cells[nr * size + nc] === 0) {
             reg.perimeter++;
           }
         }
@@ -126,7 +126,7 @@ export function analyze(grid: Grid): Analysis {
         const reg = whiteRegions[w.labels[i]];
         reg.area++;
         reg.cells.push(i);
-        if (r === 0 || c === 0) reg.touchesBorder = true;
+        if (r === 0 || c === 0 || r === size - 1 || c === size - 1) reg.touchesBorder = true;
       }
     }
   }
@@ -161,16 +161,18 @@ export interface FlipCandidate {
 
 /**
  * 扫描所有单格翻转，返回“恰好消去一个孔（孔洞数 −1）且黑域数不变”的位置。
- * 结果按 (行, 列) 升序排列。
+ * 每格都基于原始网格独立试翻，结果按 (行, 列) 升序排列。
  */
 export function findHoleRemovals(grid: Grid, base?: Analysis): FlipCandidate[] {
   const before = base ?? analyze(grid);
   const work = cloneGrid(grid);
   const out: FlipCandidate[] = [];
   for (let i = 0; i < work.cells.length; i++) {
+    // 独立试翻：翻一次、分析、再翻回来，避免前面的翻转污染后续候选
     work.cells[i] = work.cells[i] === 1 ? 0 : 1;
     const after = analyze(work);
-    if (after.holeCount < before.holeCount) {
+    work.cells[i] = work.cells[i] === 1 ? 0 : 1;
+    if (after.holeCount === before.holeCount - 1 && after.blackCount === before.blackCount) {
       out.push({
         row: Math.floor(i / grid.size),
         col: i % grid.size,
@@ -183,7 +185,6 @@ export function findHoleRemovals(grid: Grid, base?: Analysis): FlipCandidate[] {
         eulerAfter: after.euler,
       });
     }
-
   }
   out.sort((a, b) => a.row - b.row || a.col - b.col);
   return out;
@@ -231,8 +232,10 @@ export function parseGrid(text: string): Grid {
       rows = data;
     } else if (typeof data === 'object' && data !== null && Array.isArray((data as { rows?: unknown }).rows)) {
       const d = data as { rows: unknown[]; size?: unknown };
-      if (d.size !== undefined && Number(d.size) < d.rows.length) {
-        throw new Error(`size=${String(d.size)} 与行数 ${d.rows.length} 不一致`);
+      if (d.size !== undefined) {
+        if (typeof d.size !== 'number' || !Number.isInteger(d.size) || d.size !== d.rows.length) {
+          throw new Error(`size 声明（${String(d.size)}）必须是与行数（${d.rows.length}）一致的整数`);
+        }
       }
       rows = d.rows;
     } else {
@@ -254,7 +257,7 @@ export function parseGrid(text: string): Grid {
   }
   for (const row of strs) {
     if (row.length !== n) throw new Error(`每行长度须等于边长 ${n}`);
-    if (!/^[01]+$/.test(row)) continue;
+    if (!/^[01]+$/.test(row)) throw new Error(`只能包含 0/1 字符，发现非法行：${row}`);
   }
 
   const g = createGrid(n);
